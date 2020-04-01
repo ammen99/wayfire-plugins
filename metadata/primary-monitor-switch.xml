@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="primary-monitor-switch">
+	<_short>Primary Monitor Switch</_short>
+	<category>Desktop</category>
+	<option name="transient_output" type="string">
+		<_short>Transient output</_short>
+		<default>HDMI-A-2</default>
+	</option>
+	</plugin>
+</wayfire>
