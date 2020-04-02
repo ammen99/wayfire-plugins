@@ -3,8 +3,8 @@
 	<plugin name="primary-monitor-switch">
 	<_short>Primary Monitor Switch</_short>
 	<category>Desktop</category>
-	<option name="transient_output" type="string">
-		<_short>Transient output</_short>
+	<option name="external-monitor" type="string">
+		<_short>External monitor</_short>
 		<default>HDMI-A-2</default>
 	</option>
 	</plugin>
