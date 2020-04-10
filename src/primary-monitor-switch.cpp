@@ -35,7 +35,7 @@ class primary_monitor_switch_t : public wf::plugin_interface_t
     wf::wl_idle_call delayed_action;
 
   public:
-    void init()
+    void init() override
     {
         delayed_action.run_once([=] () {
             if ((std::string)external_monitor == this->output->to_string())
@@ -98,7 +98,7 @@ class primary_monitor_switch_t : public wf::plugin_interface_t
             view->tile_request(view->tiled_edges);
     }
 
-    void fini()
+    void fini() override
     {
         /* Destroy plugin */
         /* This time, there is nothing to destroy, since signal_connection_t
