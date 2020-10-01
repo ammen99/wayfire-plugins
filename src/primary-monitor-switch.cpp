@@ -57,14 +57,14 @@ class primary_monitor_switch_t : public wf::plugin_interface_t
         assert(from && to);
         wf::dimensions_t grid_size = from->workspace->get_workspace_grid_size();
         static constexpr uint32_t interesting_layers =
-            wf::LAYER_WORKSPACE | wf::LAYER_MINIMIZED | wf::LAYER_FULLSCREEN;
+            wf::LAYER_WORKSPACE | wf::LAYER_MINIMIZED;
 
         for (int x = 0; x < grid_size.width; x++)
         {
             for (int y = 0; y < grid_size.height; y++)
             {
                 auto views = from->workspace->get_views_on_workspace(
-                    {x, y}, interesting_layers, true);
+                    {x, y}, interesting_layers);
                 std::reverse(views.begin(), views.end());
 
                 for (wayfire_view v : views)
@@ -78,7 +78,7 @@ class primary_monitor_switch_t : public wf::plugin_interface_t
 
     void move_view(wayfire_view view, wf::output_t *to, wf::point_t target_ws)
     {
-        wf::get_core().move_view_to_output(view, to);
+        wf::get_core().move_view_to_output(view, to, false);
         wf::point_t current_ws = to->workspace->get_current_workspace();
 
         to->workspace->move_to_workspace(view, target_ws);
