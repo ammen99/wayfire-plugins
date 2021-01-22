@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="follow-cursor-bindings">
+	<_short>Follow Cursor for Bindings</_short>
+  <_long>Register activator bindings which are then triggered on the output hovered by the pointer, not on the active output.</_long>
+	<category>Desktop</category>
+	<option name="bindings" type="dynamic-list">
+    <entry prefix="binding" type="activator"/>
+    <entry prefix="action" type="string"/>
+	</option>
+	</plugin>
+</wayfire>
