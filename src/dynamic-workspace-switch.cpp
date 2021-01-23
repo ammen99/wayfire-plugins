@@ -13,6 +13,9 @@ class dynamic_workspace_switch_t : public wf::plugin_interface_t
             wf::create_option_string<wf::activatorbinding_t>("<super>KEY_J"), &on_switch_down);
         output->add_activator(
             wf::create_option_string<wf::activatorbinding_t>("<super>KEY_K"), &on_switch_up);
+
+        // Initially, a single workspace
+        output->workspace->set_workspace_grid_size({1, 1});
     }
 
     wf::activator_callback on_switch_down = [=] (auto)
