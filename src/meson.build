@@ -1,11 +1,12 @@
-pms = shared_module('primary-monitor-switch', 'primary-monitor-switch.cpp',
-    dependencies: [wayfire, wlroots],
-    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+plugins = [
+    'primary-monitor-switch', 'rounded-corners', 'follow-cursor-bindings',
+    'dynamic-workspace-switch']
 
-rc = shared_module('rounded-corners', 'rounded-corners.cpp',
-    dependencies: [wayfire, wlroots],
-    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+deps = [wlroots, wayfire]
 
-fcb = shared_module('follow-cursor-bindings', 'follow-cursor-bindings.cpp',
-    dependencies: [wayfire, wlroots],
-    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+foreach plugin : plugins
+  shared_module(plugin, plugin + '.cpp',
+      dependencies: deps,
+      install: true,
+      install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+endforeach
