@@ -9,3 +9,7 @@ rc = shared_module('rounded-corners', 'rounded-corners.cpp',
 fcb = shared_module('follow-cursor-bindings', 'follow-cursor-bindings.cpp',
     dependencies: [wayfire, wlroots],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+
+switch_layouts = shared_module('switch-kb-layouts', 'switch-kb-layouts.cpp',
+    dependencies: [wayfire, wlroots],
+    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
