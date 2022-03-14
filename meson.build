@@ -16,6 +16,7 @@ project(
 wayfire = dependency('wayfire')
 wlroots = dependency('wlroots')
 wfconfig = dependency('wf-config')
+json = subproject('nlohmann_json').get_variable('nlohmann_json_dep')
 
 add_project_arguments(['-DWLR_USE_UNSTABLE'], language: ['cpp', 'c'])
 add_project_arguments(['-DWAYFIRE_PLUGIN'], language: ['cpp', 'c'])
