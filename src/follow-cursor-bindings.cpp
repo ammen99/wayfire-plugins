@@ -2,7 +2,6 @@
 #include <wayfire/output.hpp>
 #include <wayfire/output-layout.hpp>
 #include <wayfire/workspace-manager.hpp>
-#include <wayfire/plugins/common/view-change-viewport-signal.hpp>
 
 class primary_monitor_switch_t : public wf::plugin_interface_t
 {
