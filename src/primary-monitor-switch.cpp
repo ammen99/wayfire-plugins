@@ -1,8 +1,8 @@
 #include <wayfire/plugin.hpp>
 #include <wayfire/output.hpp>
 #include <wayfire/output-layout.hpp>
+#include <wayfire/signal-definitions.hpp>
 #include <wayfire/workspace-manager.hpp>
-#include <wayfire/plugins/common/view-change-viewport-signal.hpp>
 
 class primary_monitor_switch_t : public wf::plugin_interface_t
 {
@@ -84,11 +84,11 @@ class primary_monitor_switch_t : public wf::plugin_interface_t
         to->workspace->move_to_workspace(view, target_ws);
         if (current_ws != target_ws)
         {
-            view_change_viewport_signal data;
+            wf::view_change_workspace_signal data;
             data.view = view;
             data.from = current_ws;
             data.to = target_ws;
-            to->emit_signal("view-change-viewport", &data);
+            to->emit_signal("view-change-workspace", &data);
         }
 
         if (view->fullscreen)
