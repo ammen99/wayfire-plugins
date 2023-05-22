@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="switch-kb-layouts">
+	<_short>Switch xkb_layout options</_short>
+  <_long>Switch xkb_layout options</_long>
+	<category>Desktop</category>
+  <option name="toggle" type="activator">
+    <default>&lt;super&gt; &lt;shift&gt; KEY_SPACE</default>
+  </option>
+	</plugin>
+</wayfire>
