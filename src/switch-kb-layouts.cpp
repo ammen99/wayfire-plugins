@@ -1,7 +1,8 @@
 #include <wayfire/plugin.hpp>
 #include <wayfire/core.hpp>
 #include <wayfire/output.hpp>
-#include <wayfire/plugins/common/shared-core-data.hpp>
+#include <wayfire/bindings-repository.hpp>
+#include <wayfire/signal-definitions.hpp>
 
 struct skb_layout_t
 {
@@ -9,28 +10,12 @@ struct skb_layout_t
     std::string xkb_variant;
 };
 
-struct skb_state_t
+class switch_kb_layouts : public wf::plugin_interface_t
 {
+    wf::option_wrapper_t<wf::activatorbinding_t> activator{"switch-kb-layouts/toggle"};
+
     skb_layout_t current;
     skb_layout_t other;
-
-    skb_state_t()
-    {
-        other     = {"us,bg", ",phonetic"};
-        current   = {"us,de", ","};
-    }
-
-    ~skb_state_t()
-    {
-        if (already_locked)
-        {
-            auto& cfg = wf::get_core().config;
-            auto layout = cfg.get_option("input/xkb_layout");
-            auto variant = cfg.get_option("input/xkb_variant");
-            layout->set_locked(0);
-            variant->set_locked(0);
-        }
-    }
 
     bool already_locked = false;
     void toggle()
@@ -51,25 +36,32 @@ struct skb_state_t
         std::swap(current, other);
 
         // Workaround for Wayfire core: trigger xkb_* option reload
-        wf::get_core().emit_signal("reload-config", nullptr);
+        wf::reload_config_signal data;
+        wf::get_core().emit(&data);
     }
-};
-
-class switch_kb_layouts : public wf::plugin_interface_t
-{
-    wf::shared_data::ref_ptr_t<skb_state_t> state;
-    wf::option_wrapper_t<wf::activatorbinding_t> activator{"switch-kb-layouts/toggle"};
 
   public:
     void init()
     {
-        output->add_activator(activator, &on_switch);
-        state->toggle();
+        other     = {"us,bg", ",phonetic"};
+        current   = {"us,de", ","};
+
+        wf::get_core().bindings->add_activator(activator, &on_switch);
+        toggle();
     }
 
     void fini()
     {
-        output->rem_binding(&on_switch);
+        if (already_locked)
+        {
+            auto& cfg = wf::get_core().config;
+            auto layout = cfg.get_option("input/xkb_layout");
+            auto variant = cfg.get_option("input/xkb_variant");
+            layout->set_locked(0);
+            variant->set_locked(0);
+        }
+
+        wf::get_core().bindings->rem_binding(&on_switch);
     }
 
     wf::wl_timer timer;
@@ -79,7 +71,7 @@ class switch_kb_layouts : public wf::plugin_interface_t
     {
         timer.set_timeout(1000, [=] ()
         {
-            state->toggle();
+            toggle();
             return false;
         });
         return true;
