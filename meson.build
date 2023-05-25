@@ -23,6 +23,7 @@ add_project_link_arguments(['-rdynamic'], language:'cpp')
 
 subdir('src')
 subdir('metadata')
+subdir('scripts')
 
 summary = [
 	'',

@@ -52,10 +52,37 @@ class WayfireSocket:
         message["data"] = {}
         return self.send_json(message)
 
+    def dump_scene(self):
+        message = get_msg_template()
+        message["method"] = "ammen99/debug/scenedump"
+        message["data"] = {}
+        return self.send_json(message)
+
+def print_scene(root, depth=0):
+    name = root["name"]
+    id = root["id"]
+    x = root["local-bbox"]["x"]
+    y = root["local-bbox"]["y"]
+    w = root["local-bbox"]["width"]
+    h = root["local-bbox"]["height"]
+
+    prefix = "| " * depth
+    if depth > 0:
+        prefix = prefix[:-1] + '-'
+
+    print(prefix + f"{name} id={id} geometry=({x},{y} {w}x{h})")
+    for ch in root["children"]:
+        print_scene(ch, depth+1)
+
 addr = os.getenv('WAYFIRE_SOCKET')
 wsocket = WayfireSocket(addr)
 
-if sys.argv[1] == "start":
+if sys.argv[1] == "dump-scenegraph":
+    print_scene(wsocket.dump_scene())
+elif sys.argv[1] == "start-log":
     wsocket.set_debug_filter(sys.argv[2])
-else:
+elif sys.argv[1] == "stop-log":
     wsocket.stop_log()
+else:
+    print("Unknown command!")
+

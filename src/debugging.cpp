@@ -1,13 +1,17 @@
 #include <memory>
 #include <nlohmann/json_fwd.hpp>
+#include <sstream>
+#include <wayfire/config/option-types.hpp>
 #include <wayfire/config/types.hpp>
 #include <wayfire/core.hpp>
 #include <wayfire/geometry.hpp>
 #include <wayfire/opengl.hpp>
 #include <wayfire/plugin.hpp>
 #include <wayfire/plugins/ipc/ipc-method-repository.hpp>
+#include <wayfire/plugins/ipc/ipc-helpers.hpp>
 #include <wayfire/plugins/common/shared-core-data.hpp>
 #include <wayfire/region.hpp>
+#include <wayfire/scene-input.hpp>
 #include <wayfire/scene-render.hpp>
 #include <wayfire/util/log.hpp>
 #include <wayfire/debug.hpp>
@@ -131,7 +135,7 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
     {
         if (std::regex_match(line, filter))
         {
-            std::cout << "$$$$$$$$$$$$$$$$$" << line << std::endl;
+            std::cout << line << std::endl;
             overlay->add_line(line);
         }
     };
@@ -148,6 +152,7 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
         nlohmann::json data;
         repository->register_method("ammen99/debug/filter", method_set_filter);
         repository->register_method("ammen99/debug/stop_log", method_stop_log);
+        repository->register_method("ammen99/debug/scenedump", method_dump_scenegraph);
     }
 
     wf::ipc::method_callback method_set_filter = [=] (nlohmann::json data)
@@ -186,6 +191,32 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
         }
 
         return wf::ipc::json_ok();
+    };
+
+    nlohmann::json dump_scenegraph(wf::scene::node_ptr root)
+    {
+        nlohmann::json result = nlohmann::ordered_json::object();
+
+        result["name"] = root->stringify();
+        result["local-bbox"] = wf::ipc::geometry_to_json(root->get_bounding_box());
+
+        std::stringstream ss;
+        ss << root.get();
+        result["id"] = ss.str();
+
+        result["children"] = nlohmann::json::array();
+
+        for (auto& ch : root->get_children())
+        {
+            result["children"].push_back(dump_scenegraph(ch));
+        }
+
+        return result;
+    }
+
+    wf::ipc::method_callback method_dump_scenegraph = [=] (nlohmann::json)
+    {
+        return dump_scenegraph(wf::get_core().scene());
     };
 };
 
