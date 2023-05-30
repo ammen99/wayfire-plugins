@@ -64,7 +64,7 @@ class switch_kb_layouts : public wf::plugin_interface_t
         wf::get_core().bindings->rem_binding(&on_switch);
     }
 
-    wf::wl_timer timer;
+    wf::wl_timer<false> timer;
 
   private:
     wf::activator_callback on_switch = [=] (const wf::activator_data_t&)
@@ -72,7 +72,6 @@ class switch_kb_layouts : public wf::plugin_interface_t
         timer.set_timeout(1000, [=] ()
         {
             toggle();
-            return false;
         });
         return true;
     };

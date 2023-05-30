@@ -68,7 +68,7 @@ class output_log_overlay_t : public wf::scene::node_t
         {
             OpenGL::render_begin(target);
 
-            auto g = wf::construct_box({0, 0}, self->text.get_size());
+            auto g = wf::construct_box(wf::origin(self->get_bounding_box()), self->text.get_size());
             for (auto box : region)
             {
                 target.logic_scissor(wlr_box_from_pixman_box(box));
@@ -96,7 +96,15 @@ class output_log_overlay_t : public wf::scene::node_t
 
     wf::geometry_t get_bounding_box() override
     {
-        return {0, 0, 1280, 720};
+        auto outputs = wf::get_core().output_layout->get_outputs();
+        if (outputs.empty())
+        {
+            return {0, 0, 1280, 720};
+        } else
+        {
+            auto og = outputs.front()->get_layout_geometry();
+            return {og.x, og.y, 1280, 720};
+        }
     }
 
     void add_line(std::string line)
