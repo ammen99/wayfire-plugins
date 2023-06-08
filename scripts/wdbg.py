@@ -58,6 +58,7 @@ class WayfireSocket:
         message["data"] = {}
         message["data"]["width"] = w
         message["data"]["height"] = h
+        return self.send_json(message)
 
     def dump_scene(self):
         message = get_msg_template()
