@@ -52,6 +52,13 @@ class WayfireSocket:
         message["data"] = {}
         return self.send_json(message)
 
+    def set_grid(self, w: int, h: int):
+        message = get_msg_template()
+        message["method"] = "ammen99/ipc/set_grid_size"
+        message["data"] = {}
+        message["data"]["width"] = w
+        message["data"]["height"] = h
+
     def dump_scene(self):
         message = get_msg_template()
         message["method"] = "ammen99/debug/scenedump"
@@ -83,6 +90,8 @@ elif sys.argv[1] == "start-log":
     wsocket.set_debug_filter(sys.argv[2])
 elif sys.argv[1] == "stop-log":
     wsocket.stop_log()
+elif sys.argv[1] == "set-grid":
+    wsocket.set_grid(int(sys.argv[2]), int(sys.argv[3]))
 else:
     print("Unknown command!")
 
