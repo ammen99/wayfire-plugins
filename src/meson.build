@@ -17,3 +17,11 @@ switch_layouts = shared_module('switch-kb-layouts', 'switch-kb-layouts.cpp',
 wayfire_debugging = shared_module('ammen99-debugging', 'debugging.cpp',
     dependencies: [wayfire, wlroots],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+
+wayfire_debugging = shared_module('ammen99-ipc', 'myipc.cpp',
+    dependencies: [wayfire, wlroots],
+    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+
+logitech_workaround = shared_module('ammen99-logitech', 'workaround-logitech.cpp',
+    dependencies: [wayfire, wlroots],
+    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
