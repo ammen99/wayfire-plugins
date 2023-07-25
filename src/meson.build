@@ -25,3 +25,8 @@ wayfire_debugging = shared_module('ammen99-ipc', 'myipc.cpp',
 logitech_workaround = shared_module('ammen99-logitech', 'workaround-logitech.cpp',
     dependencies: [wayfire, wlroots],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+
+logitech_workaround = shared_module('blur-to-background', 'blur-to-background.cpp',
+    dependencies: [wayfire, wlroots],
+    link_args: ['-lwayfire-blur-base'],
+    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))

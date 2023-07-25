@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="blur-to-background">
+	<_short>Blur to Background</_short>
+	<category>Desktop</category>
+	<option name="enabled_for" type="string">
+    <default>none</default>
+	</option>
+	</plugin>
+</wayfire>
