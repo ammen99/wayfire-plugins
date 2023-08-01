@@ -4,6 +4,9 @@ import socket
 import json as js
 import os
 import sys
+import re
+from typing import Any, Tuple
+import termcolor
 
 def get_msg_template():
     # Create generic message template
@@ -66,8 +69,31 @@ class WayfireSocket:
         message["data"] = {}
         return self.send_json(message)
 
-def print_scene(root, depth=0):
+def highlight_for_node(name: str) -> Tuple[Any, Any]:
+    if 'root ()' == name:
+        return ('yellow', ['bold'])
+
+    if 'layer_' in name:
+        return ('magenta', ['bold'])
+
+    if 'workspace-set' in name:
+        return ('blue', ['bold'])
+
+    if 'view-root-node' in name:
+        return ('green', ['bold'])
+
+    if 'output' == name[:6]:
+        return ('cyan', ['bold'])
+
+    return (None, [])
+
+highlight_nodes = ['view-root-node', 'workspace-set', 'layer_']
+
+def print_scene(root, depth=0, disabled=False):
     name = root["name"]
+    if re.search(r'\([^)]*d[^)]*\)', name):
+        disabled = True
+
     id = root["id"]
     x = root["local-bbox"]["x"]
     y = root["local-bbox"]["y"]
@@ -78,9 +104,20 @@ def print_scene(root, depth=0):
     if depth > 0:
         prefix = prefix[:-1] + '-'
 
-    print(prefix + f"{name} id={id} geometry=({x},{y} {w}x{h})")
+    string = f"{name} id={id} geometry=({x},{y} {w}x{h})"
+
+    if disabled:
+        _, attrs = highlight_for_node(name)
+        print(termcolor.colored(prefix + string, attrs=['dark'] + attrs))
+    else:
+        color, attrs = highlight_for_node(name)
+        if color:
+            print(prefix + termcolor.colored(string, color, attrs=attrs))
+        else:
+            print(prefix + termcolor.colored(string, attrs=attrs))
+
     for ch in root["children"]:
-        print_scene(ch, depth+1)
+        print_scene(ch, depth+1, disabled)
 
 addr = os.getenv('WAYFIRE_SOCKET')
 wsocket = WayfireSocket(addr)

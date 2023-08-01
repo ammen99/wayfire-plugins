@@ -130,16 +130,11 @@ struct blurred_background_t : public wf::custom_data_t
 class background_blur_node_t : public scene::floating_inner_node_t
 {
   public:
-    wayfire_view view;
-    wf::signal::connection_t<view_destruct_signal> on_view_destruct = [=] (auto)
-    {
-        view = nullptr;
-    };
+    std::weak_ptr<wf::view_interface_t> _view;
 
     background_blur_node_t(wayfire_view view) : floating_inner_node_t(false)
     {
-        this->view = view;
-        view->connect(&on_view_destruct);
+        _view = view->weak_from_this();
     }
 
     std::string stringify() const override
@@ -156,17 +151,30 @@ class blur_render_instance_t : public scene::transformer_render_instance_t<backg
   public:
     using transformer_render_instance_t::transformer_render_instance_t;
 
+    bool should_report_opaque()
+    {
+        auto view = self->_view.lock();
+        const auto& ch = self->get_children();
+        return view && ch.size() == 1 && view->get_surface_root_node() == ch.front();
+    }
+
     void schedule_instructions(std::vector<scene::render_instruction_t>& instructions,
         const wf::render_target_t& target, wf::region_t& damage) override
     {
         transformer_render_instance_t::schedule_instructions(instructions, target, damage);
-        damage ^= self->get_bounding_box();
+        if (should_report_opaque())
+        {
+            damage ^= self->get_bounding_box();
+        }
     }
 
     void compute_visibility(wf::output_t *output, wf::region_t& visible) override
     {
         transformer_render_instance_t::compute_visibility(output, visible);
-        visible ^= self->get_bounding_box();
+        if (should_report_opaque())
+        {
+            visible ^= self->get_bounding_box();
+        }
     }
 
     void passthrough_render(const wf::render_target_t& target, const wf::region_t& damage,
@@ -188,12 +196,13 @@ class blur_render_instance_t : public scene::transformer_render_instance_t<backg
         auto tex = get_texture(target.scale);
         auto bounding_box = self->get_bounding_box();
         auto our_damage = damage & bounding_box;
-        if (our_damage.empty() || !self->view || !self->view->get_output())
+        auto view = self->_view.lock();
+        if (our_damage.empty() || !view || !view->get_output())
         {
             return passthrough_render(target, damage, tex);
         }
 
-        auto& blur = blurred_background_t::get(self->view->get_output());
+        auto& blur = blurred_background_t::get(view->get_output());
 
         if (wf::dimensions(target.geometry) != wf::dimensions(blur.background.geometry))
         {
