@@ -1,9 +1,12 @@
 #include <wayfire/plugin.hpp>
+#include <wayfire/per-output-plugin.hpp>
 #include <wayfire/input-device.hpp>
 #include <wayfire/plugins/common/shared-core-data.hpp>
+#include <wayfire/scene-input.hpp>
+#include <wayfire/scene.hpp>
 #include <wayfire/util/log.hpp>
 #include <wayfire/render-manager.hpp>
-#include <wayfire/workspace-manager.hpp>
+#include <wayfire/workspace-set.hpp>
 #include <libinput.h>
 #include <wayfire/option-wrapper.hpp>
 #include <wayfire/touch/touch.hpp>
@@ -12,31 +15,38 @@
 #include <wayfire/debug.hpp>
 #include <wayfire/util/duration.hpp>
 #include <wayfire/nonstd/wlroots-full.hpp>
-
-#include "ipc.hpp"
+#include <wayfire/plugins/common/shared-core-data.hpp>
+#include <wayfire/plugins/ipc/ipc-method-repository.hpp>
+#include <wayfire/plugins/ipc/ipc-helpers.hpp>
+#include <wayfire/plugins/common/input-grab.hpp>
+#include <wayfire/toplevel-view.hpp>
 
 namespace wf
 {
 
 class tablet_mode_t
 {
-    std::unique_ptr<wf::ipc::server_t> server;
     bool tablet_mode = false;
+    shared_data::ref_ptr_t<ipc::method_repository_t> repo;
 
   public:
     tablet_mode_t()
     {
-        server = std::make_unique<wf::ipc::server_t>(
-            "/tmp/wayfire-touch.socket");
-
-        server->register_method("touch/set_tablet_mode", set_tablet_mode);
-        server->register_method("touch/lock_rotation", lock_rotation);
-        server->register_method("touch/get_tablet_mode", get_tablet_mode);
-        server->register_method("touch/get_lock_rotation", get_lock_rotation);
+        repo->register_method("touch/set_tablet_mode", set_tablet_mode);
+        repo->register_method("touch/lock_rotation", lock_rotation);
+        repo->register_method("touch/get_tablet_mode", get_tablet_mode);
+        repo->register_method("touch/get_lock_rotation", get_lock_rotation);
     }
 
-    using method_t = wf::ipc::server_t::method_cb;
-    method_t set_tablet_mode = [=] (nlohmann::json data)
+    ~tablet_mode_t()
+    {
+        repo->unregister_method("touch/set_tablet_mode");
+        repo->unregister_method("touch/lock_rotation");
+        repo->unregister_method("touch/get_tablet_mode");
+        repo->unregister_method("touch/get_lock_rotation");
+    }
+
+    wf::ipc::method_callback set_tablet_mode = [=] (nlohmann::json data)
     {
         if (!data.count("tablet") || !data["tablet"].is_boolean()) {
             LOGE("Invalid tablet mode data, missing tablet boolean option.");
@@ -56,11 +66,9 @@ class tablet_mode_t
         return nlohmann::json{};
     };
 
-    method_t lock_rotation = [] (nlohmann::json data)
+    ipc::method_callback lock_rotation = [] (nlohmann::json data)
     {
-        if (!data.count("locked") || !data["locked"].is_boolean()) {
-            LOGE("Invalid lock rotation data, missing locked boolean option.");
-        }
+        WFJSON_EXPECT_FIELD(data, "locked", boolean);
 
         auto& cfg = wf::get_core().config;
         auto opt = cfg.get_option("autorotate-iio/lock_rotation");
@@ -70,14 +78,14 @@ class tablet_mode_t
         return nlohmann::json{};
     };
 
-    method_t get_tablet_mode = [=] (nlohmann::json)
+    ipc::method_callback get_tablet_mode = [=] (nlohmann::json)
     {
         nlohmann::json js;
         js["tablet"] = tablet_mode;
         return js;
     };
 
-    method_t get_lock_rotation = [=] (nlohmann::json)
+    ipc::method_callback get_lock_rotation = [=] (nlohmann::json)
     {
         wf::option_wrapper_t<bool> locked{"autorotate-iio/lock_rotation"};
 
@@ -119,9 +127,10 @@ class reveal_action_t : public gesture_action_t
     }
 };
 
-class tablet_plugin_t : public wf::plugin_interface_t
+class tablet_plugin_t : public wf::per_output_plugin_instance_t
 {
     wf::shared_data::ref_ptr_t<tablet_mode_t> tablet;
+    std::unique_ptr<input_grab_t> input_grab;
 
     touch_action_t *touch_down;
     std::unique_ptr<gesture_t> reveal_gesture;
@@ -129,10 +138,14 @@ class tablet_plugin_t : public wf::plugin_interface_t
 
     wf::wl_listener_wrapper needs_osk;
 
+    wf::plugin_activation_data_t grab_interface = {
+        .capabilities = CAPABILITY_GRAB_INPUT,
+    };
+
   public:
     void init()
     {
-        grab_interface->capabilities = CAPABILITY_GRAB_INPUT;
+        input_grab = std::make_unique<wf::input_grab_t>("tablet-mode", output, nullptr, nullptr, nullptr);
         // Setup a gesture for opening amoxtli-panel.
         // The user needs to swipe from the top edge.
 
@@ -141,17 +154,14 @@ class tablet_plugin_t : public wf::plugin_interface_t
         this->touch_down = touch_down.get();
         // Set initial target
         on_output_config_changed.emit(NULL);
-        output->connect_signal("output-configuration-changed",
-            &on_output_config_changed);
+        output->connect(&on_output_config_changed);
 
         // Second, user swipes down
-        auto swipe_down = std::make_unique<drag_action_t>(
-            MOVE_DIRECTION_UP, 50);
+        auto swipe_down = std::make_unique<drag_action_t>(MOVE_DIRECTION_UP, 50);
 
         // Third, we reveal amoxtli.
         // A special gesture which moves the panel.
-        auto reveal_up = std::make_unique<reveal_action_t>(
-            drag_started, drag_continues);
+        auto reveal_up = std::make_unique<reveal_action_t>(drag_started, drag_continues);
 
         std::vector<std::unique_ptr<gesture_action_t>> actions;
         actions.emplace_back(std::move(touch_down));
@@ -174,8 +184,8 @@ class tablet_plugin_t : public wf::plugin_interface_t
         wf::get_core().add_touch_gesture(tap_to_close_gesture);
 
         // Connect signals necessary for the panel
-        output->connect_signal("view-mapped", &on_mapped);
-        output->connect_signal("view-unmapped", &on_unmaped);
+        output->connect(&on_mapped);
+        output->connect(&on_unmapped);
     }
 
     void fini()
@@ -184,7 +194,8 @@ class tablet_plugin_t : public wf::plugin_interface_t
         wf::get_core().rem_touch_gesture(tap_to_close_gesture);
     }
 
-    wf::signal_connection_t on_output_config_changed = [&] (wf::signal_data_t *)
+    wf::signal::connection_t<output_configuration_changed_signal> on_output_config_changed =
+        [=] (output_configuration_changed_signal*)
     {
         auto og = output->get_layout_geometry();
         touch_target_t target;
@@ -198,7 +209,7 @@ class tablet_plugin_t : public wf::plugin_interface_t
     };
 
     wf::animation::simple_animation_t panel_dropdown{wf::create_option(300)};
-    wayfire_view panel;
+    wayfire_toplevel_view panel;
     bool close_panel_on_animation_done = false;
 
     wf::effect_hook_t animate_panel = [=] ()
@@ -212,7 +223,7 @@ class tablet_plugin_t : public wf::plugin_interface_t
             }
         }
 
-        wf::geometry_t g = panel->get_wm_geometry();
+        wf::geometry_t g = panel->get_pending_geometry();
         auto og = output->get_relative_geometry();
         g.x = og.width / 2 - g.width / 2;
         g.y = (int)panel_dropdown;
@@ -230,7 +241,7 @@ class tablet_plugin_t : public wf::plugin_interface_t
             return state.fingers[0].current.y - output->get_layout_geometry().y;
         } else
         {
-            return panel->get_wm_geometry().height;
+            return panel->get_pending_geometry().height;
         }
     }
 
@@ -241,7 +252,7 @@ class tablet_plugin_t : public wf::plugin_interface_t
             return;
         }
 
-        int min_y = output->get_screen_size().height - panel->get_wm_geometry().height - 50;
+        int min_y = output->get_screen_size().height - panel->get_pending_geometry().height - 50;
         panel_dropdown.animate(std::max(y, min_y));
 
         output->render->rem_effect(&animate_panel);
@@ -249,15 +260,15 @@ class tablet_plugin_t : public wf::plugin_interface_t
         output->render->schedule_redraw();
     }
 
-    wf::signal_connection_t on_mapped = [&] (wf::signal_data_t *data)
+    wf::signal::connection_t<view_mapped_signal> on_mapped = [=] (view_mapped_signal *ev)
     {
-        auto view = get_signaled_view(data);
-        if (view->get_app_id() == "amoxtli.panel")
+        if (ev->view->get_app_id() == "amoxtli.panel")
         {
             close_panel_on_animation_done = false;
-            panel = view;
+            panel = toplevel_cast(ev->view);
 
-            output->workspace->add_view(panel, LAYER_DESKTOP_WIDGET);
+            panel->get_wset()->remove_view(panel);
+            wf::scene::readd_front(output->node_for_layer(wf::scene::layer::OVERLAY), panel->get_root_node());
 
             // Initially, the panel should be hidden
             auto y = output->get_screen_size().height;
@@ -266,9 +277,9 @@ class tablet_plugin_t : public wf::plugin_interface_t
         }
     };
 
-    wf::signal_connection_t on_unmaped = [&] (wf::signal_data_t *data)
+    wf::signal::connection_t<view_unmapped_signal> on_unmapped = [=] (view_unmapped_signal *ev)
     {
-        if (get_signaled_view(data) == panel)
+        if (ev->view == panel)
         {
             panel = nullptr;
         }
@@ -276,7 +287,7 @@ class tablet_plugin_t : public wf::plugin_interface_t
 
     std::function<void()> drag_started = [=] ()
     {
-        grab_interface->grab();
+        input_grab->grab_input(wf::scene::layer::OVERLAY);
         if (!panel)
         {
             wf::get_core().run("pkill wf-panel");
@@ -291,10 +302,10 @@ class tablet_plugin_t : public wf::plugin_interface_t
 
     std::function<void()> drag_ended = [=] ()
     {
-        grab_interface->ungrab();
+        input_grab->ungrab_input();
         if (panel)
         {
-            start_animation(panel->get_wm_geometry().height);
+            start_animation(panel->get_pending_geometry().height);
         }
     };
 
@@ -309,4 +320,4 @@ class tablet_plugin_t : public wf::plugin_interface_t
 };
 }
 
-DECLARE_WAYFIRE_PLUGIN(wf::tablet_plugin_t);
+DECLARE_WAYFIRE_PLUGIN(wf::per_output_plugin_t<wf::tablet_plugin_t>);

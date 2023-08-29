@@ -31,6 +31,6 @@ logitech_workaround = shared_module('blur-to-background', 'blur-to-background.cp
     link_args: ['-lwayfire-blur-base'],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
 
-tablet_mode = shared_module('tablet-mode', ['tablet-mode.cpp', 'ipc.cpp'],
+tablet_mode = shared_module('tablet-mode', ['tablet-mode.cpp'],
     dependencies: [wayfire, wlroots, json],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
