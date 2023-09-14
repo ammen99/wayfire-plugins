@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="show-cursor">
+	<_short>Show Cursor</_short>
+	<category>Desktop</category>
+	<option name="toggle" type="activator">
+    <default>disabled</default>
+	</option>
+
+	<option name="start_enabled" type="bool">
+    <default>true</default>
+	</option>
+	</plugin>
+</wayfire>
