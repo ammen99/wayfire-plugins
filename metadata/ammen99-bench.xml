@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="ammen99-bench">
+		<_short>Bench</_short>
+		<_long>Display fps on each output.</_long>
+		<category>Utility</category>
+		<option name="average_frames" type="double">
+			<_short>Average from</_short>
+			<_long>Average the frames from the last X seconds to get the FPS value.</_long>
+			<default>1</default>
+			<min>0.1</min>
+		</option>
+		<option name="refresh_interval" type="double">
+			<_short>Refresh interval</_short>
+			<_long>How often to refresh the FPS counter on the screen (in seconds). Set to 0 for instant refresh.</_long>
+			<default>0</default>
+			<min>0</min>
+		</option>
+	</plugin>
+</wayfire>

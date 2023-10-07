@@ -38,3 +38,7 @@ logitech_workaround = shared_module('blur-to-background', 'blur-to-background.cp
 tablet_mode = shared_module('tablet-mode', ['tablet-mode.cpp'],
     dependencies: [wayfire, wlroots, json],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+
+bench = shared_module('ammen99-bench', ['bench.cpp'],
+    dependencies: [wayfire, wlroots, json],
+    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))

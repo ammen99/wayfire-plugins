@@ -8,6 +8,7 @@
 #include <wayfire/workspace-set.hpp>
 #include <wayfire/util/log.hpp>
 #include <wayfire/debug.hpp>
+#include <wayfire/seat.hpp>
 
 class ammen99_ipc_commands : public wf::plugin_interface_t
 {
@@ -24,7 +25,7 @@ class ammen99_ipc_commands : public wf::plugin_interface_t
         WFJSON_EXPECT_FIELD(data, "width", number_integer);
         WFJSON_EXPECT_FIELD(data, "height", number_integer);
 
-        auto wo = wf::get_core().get_active_output();
+        auto wo = wf::get_core().seat->get_active_output();
         if (wo)
         {
             wo->wset()->set_workspace_grid_size({(int)data["width"], (int)data["height"]});
