@@ -30,10 +30,10 @@ logitech_workaround = shared_module('ammen99-logitech', 'workaround-logitech.cpp
     dependencies: [wayfire, wlroots],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
 
-logitech_workaround = shared_module('blur-to-background', 'blur-to-background.cpp',
-    dependencies: [wayfire, wlroots],
-    link_args: ['-lwayfire-blur-base'],
-    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
+#logitech_workaround = shared_module('blur-to-background', 'blur-to-background.cpp',
+#    dependencies: [wayfire, wlroots],
+#    link_args: ['-lwayfire-blur-base'],
+#    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
 
 tablet_mode = shared_module('tablet-mode', ['tablet-mode.cpp'],
     dependencies: [wayfire, wlroots, json],
