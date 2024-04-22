@@ -20,6 +20,7 @@
 #include <wayfire/plugins/ipc/ipc-helpers.hpp>
 #include <wayfire/plugins/common/input-grab.hpp>
 #include <wayfire/toplevel-view.hpp>
+#include <wayfire/plugins/input-method-v1/input-method-v1.hpp>
 
 namespace wf
 {
@@ -29,6 +30,26 @@ class tablet_mode_t
     bool tablet_mode = false;
     shared_data::ref_ptr_t<ipc::method_repository_t> repo;
 
+    wf::wl_timer<false> timer_osk;
+
+    wf::signal::connection_t<wf::input_method_v1_activate_signal> on_im_activate = [=] (auto)
+    {
+        if (tablet_mode)
+        {
+            timer_osk.disconnect();
+            timer_osk.set_timeout(500, [] () { wf::get_core().run("wf-osk -a bottom -b 40"); });
+        }
+    };
+
+    wf::signal::connection_t<wf::input_method_v1_deactivate_signal> on_im_deactivate = [=] (auto)
+    {
+        if (tablet_mode)
+        {
+            timer_osk.disconnect();
+            timer_osk.set_timeout(500, [] () { wf::get_core().run("pkill wf-osk"); });
+        }
+    };
+
   public:
     tablet_mode_t()
     {
@@ -36,6 +57,9 @@ class tablet_mode_t
         repo->register_method("touch/lock_rotation", lock_rotation);
         repo->register_method("touch/get_tablet_mode", get_tablet_mode);
         repo->register_method("touch/get_lock_rotation", get_lock_rotation);
+
+        wf::get_core().connect(&on_im_activate);
+        wf::get_core().connect(&on_im_deactivate);
     }
 
     ~tablet_mode_t()

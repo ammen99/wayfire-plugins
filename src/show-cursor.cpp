@@ -8,6 +8,7 @@
 #include <wayfire/scene-operations.hpp>
 #include <wayfire/signal-definitions.hpp>
 #include <wayfire/signal-provider.hpp>
+#include <wayfire/nonstd/wlroots-full.hpp>
 
 class cursor_overlay_t : public wf::scene::node_t
 {
@@ -81,6 +82,8 @@ class wayfire_show_cursor : public wf::plugin_interface_t
         update_position();
         wf::get_core().connect(&on_motion);
         wf::get_core().connect(&on_motion_abs);
+        wf::get_core().connect(&on_proximity);
+        wf::get_core().connect(&on_axis);
     }
 
     void disable()
@@ -88,6 +91,8 @@ class wayfire_show_cursor : public wf::plugin_interface_t
         wf::scene::remove_child(node);
         on_motion.disconnect();
         on_motion_abs.disconnect();
+        on_proximity.disconnect();
+        on_axis.disconnect();
     }
 
     void update_position()
@@ -113,6 +118,19 @@ class wayfire_show_cursor : public wf::plugin_interface_t
         update_position();
     };
 
+    wf::signal::connection_t<wf::post_input_event_signal<wlr_tablet_tool_proximity_event>> on_proximity =
+        [&] (auto)
+    {
+        update_position();
+    };
+
+    wf::signal::connection_t<wf::post_input_event_signal<wlr_tablet_tool_axis_event>> on_axis =
+        [&] (auto)
+    {
+        update_position();
+    };
+
+
   public:
     void init() override
     {
@@ -123,6 +141,16 @@ class wayfire_show_cursor : public wf::plugin_interface_t
         {
             enable();
         }
+    }
+
+    void fini() override
+    {
+        if (currently_enabled)
+        {
+            disable();
+        }
+
+        wf::get_core().bindings->rem_binding(&on_toggle);
     }
 };
 
