@@ -21,6 +21,7 @@
 #include <wayfire/plugins/common/input-grab.hpp>
 #include <wayfire/toplevel-view.hpp>
 #include <wayfire/plugins/input-method-v1/input-method-v1.hpp>
+#include <linux/input-event-codes.h>
 
 namespace wf
 {
@@ -72,8 +73,9 @@ class tablet_mode_t
 
     wf::ipc::method_callback set_tablet_mode = [=] (nlohmann::json data)
     {
-        if (!data.count("tablet") || !data["tablet"].is_boolean()) {
-            LOGE("Invalid tablet mode data, missing tablet boolean option.");
+        if (!data.count("tablet") || !data["tablet"].is_boolean())
+        {
+            return wf::ipc::json_error("Invalid tablet mode data, missing tablet boolean option.");
         }
 
         this->tablet_mode = data["tablet"];
@@ -156,9 +158,10 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
     wf::shared_data::ref_ptr_t<tablet_mode_t> tablet;
     std::unique_ptr<input_grab_t> input_grab;
 
-    touch_action_t *touch_down;
-    std::unique_ptr<gesture_t> reveal_gesture;
-    std::unique_ptr<gesture_t> tap_to_close_gesture;
+    gesture_t reveal_gesture;
+    gesture_t tap_to_close_gesture;
+    gesture_t tap3_to_extra_btn;
+    gesture_t double_tap2_to_side_btn;
 
     wf::wl_listener_wrapper needs_osk;
 
@@ -170,52 +173,63 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
     void init()
     {
         input_grab = std::make_unique<wf::input_grab_t>("tablet-mode", output, nullptr, nullptr, nullptr);
-        // Setup a gesture for opening amoxtli-panel.
-        // The user needs to swipe from the top edge.
 
-        // First, user touches down
-        auto touch_down = std::make_unique<touch_action_t>(1, true);
-        this->touch_down = touch_down.get();
-        // Set initial target
+        // Setup initial gesture for amoxtli-panel
         on_output_config_changed.emit(NULL);
         output->connect(&on_output_config_changed);
-
-        // Second, user swipes down
-        auto swipe_down = std::make_unique<drag_action_t>(MOVE_DIRECTION_UP, 50);
-
-        // Third, we reveal amoxtli.
-        // A special gesture which moves the panel.
-        auto reveal_up = std::make_unique<reveal_action_t>(drag_started, drag_continues);
-
-        std::vector<std::unique_ptr<gesture_action_t>> actions;
-        actions.emplace_back(std::move(touch_down));
-        actions.emplace_back(std::move(swipe_down));
-        actions.emplace_back(std::move(reveal_up));
-
-        reveal_gesture = std::make_unique<gesture_t>(std::move(actions), drag_ended);
-        wf::get_core().add_touch_gesture(reveal_gesture);
-
         // Setup a gesture for closing amoxtli-panel by clicking everywhere else on the screen.
-        auto tap_down = std::make_unique<touch_action_t>(1, true);
-        auto tap_up = std::make_unique<touch_action_t>(1, false);
-        tap_up->set_move_tolerance(5);
-        tap_up->set_duration(100);
-
-        actions.clear();
-        actions.emplace_back(std::move(tap_down));
-        actions.emplace_back(std::move(tap_up));
-        tap_to_close_gesture = std::make_unique<gesture_t>(std::move(actions), close_panel);
-        wf::get_core().add_touch_gesture(tap_to_close_gesture);
+        tap_to_close_gesture = wf::touch::gesture_builder_t()
+            .action(touch_action_t(1, true))
+            .action(touch_action_t(1, false)
+                .set_move_tolerance(5)
+                .set_duration(100))
+            .on_completed(close_panel)
+            .build();
+        wf::get_core().add_touch_gesture(&tap_to_close_gesture);
 
         // Connect signals necessary for the panel
         output->connect(&on_mapped);
         output->connect(&on_unmapped);
+
+        // Setup a gesture to emulate BTN_EXTRA by three-finger tap (needed for mypaint undo shortcut)
+        tap3_to_extra_btn = wf::touch::gesture_builder_t()
+            .action(touch_action_t(3, true)
+                .set_duration(300)
+                .set_move_tolerance(25))
+            .action(touch_action_t(3, false)
+                .set_duration(300)
+                .set_move_tolerance(25))
+            .on_completed(emulate_btn_extra)
+            .build();
+        wf::get_core().add_touch_gesture(&tap3_to_extra_btn);
+
+        // Setup a gesture to emulate BTN_SIDE by two finger double tap
+        double_tap2_to_side_btn = wf::touch::gesture_builder_t()
+            .action(touch_action_t(2, true)
+                .set_duration(400)
+                .set_move_tolerance(25))
+            .action(touch_action_t(2, false)
+                .set_duration(400)
+                .set_move_tolerance(25))
+            .action(touch_action_t(2, true)
+                .set_duration(400)
+                .set_move_tolerance(25))
+            .action(touch_action_t(2, false)
+                .set_duration(400)
+                .set_move_tolerance(25))
+            .on_completed(emulate_btn_side)
+            .build();
+        wf::get_core().add_touch_gesture(&double_tap2_to_side_btn);
+
+        wf::get_core().connect(&on_tablet_proximity);
     }
 
     void fini()
     {
-        wf::get_core().rem_touch_gesture(reveal_gesture);
-        wf::get_core().rem_touch_gesture(tap_to_close_gesture);
+        wf::get_core().rem_touch_gesture(&reveal_gesture);
+        wf::get_core().rem_touch_gesture(&tap_to_close_gesture);
+        wf::get_core().rem_touch_gesture(&tap3_to_extra_btn);
+        wf::get_core().rem_touch_gesture(&double_tap2_to_side_btn);
     }
 
     wf::signal::connection_t<output_configuration_changed_signal> on_output_config_changed =
@@ -229,7 +243,19 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
         target.width = og.width;
         target.height = 20;
 
-        touch_down->set_target(target);
+
+        // Setup a gesture for opening amoxtli-panel.
+        // The user needs to swipe from the top edge.
+        wf::get_core().rem_touch_gesture(&reveal_gesture);
+
+        this->reveal_gesture = wf::touch::gesture_builder_t()
+            .action(touch_action_t(1, true)
+                .set_target(target))
+            .action(drag_action_t(MOVE_DIRECTION_UP, 50))
+            .action(reveal_action_t(drag_started, drag_continues))
+            .on_completed(drag_ended)
+            .build();
+        wf::get_core().add_touch_gesture(&reveal_gesture);
     };
 
     wf::animation::simple_animation_t panel_dropdown{wf::create_option(300)};
@@ -339,6 +365,75 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
         {
             close_panel_on_animation_done = true;
             start_animation(output->get_screen_size().height);
+        }
+    };
+
+    void emulate_press(wf::scene::node_ptr focus, uint32_t btn)
+    {
+        if (!focus) return;
+        focus->pointer_interaction().handle_pointer_enter({10, 10});
+        auto seat = wf::get_core().get_current_seat();
+
+        wlr_seat_pointer_notify_button(seat, get_current_time(), btn, WLR_BUTTON_PRESSED);
+        wlr_seat_pointer_notify_frame(seat);
+        wlr_seat_pointer_notify_button(seat, get_current_time(), btn, WLR_BUTTON_RELEASED);
+        wlr_seat_pointer_notify_frame(seat);
+
+        if (focus != wf::get_core().get_cursor_focus())
+        {
+            focus->pointer_interaction().handle_pointer_leave();
+        }
+    }
+
+    wf::scene::node_ptr find_focus()
+    {
+        auto fingers = wf::get_core().get_touch_state();
+        if (fingers.fingers.empty())
+        {
+            return nullptr;
+        }
+
+        int id = fingers.fingers.begin()->first;
+        return wf::get_core().get_touch_focus(id);
+    }
+
+    std::function<void()> emulate_btn_extra = [=] ()
+    {
+        emulate_press(find_focus(), BTN_EXTRA);
+    };
+
+    std::function<void()> emulate_btn_side = [=] ()
+    {
+        emulate_press(find_focus(), BTN_SIDE);
+    };
+
+    void set_touch_state(bool state)
+    {
+        for (auto dev : wf::get_core().get_input_devices())
+        {
+            if (dev->get_wlr_handle()->type == WLR_INPUT_DEVICE_TOUCH)
+            {
+                dev->set_enabled(state);
+            }
+        }
+    }
+
+    wf::wl_timer<false> timer_reenable_touch;
+    wf::option_wrapper_t<int> reenable_timeout{"tablet-mode/touch_reenable_timeout"};
+
+    wf::signal::connection_t<wf::input_event_signal<wlr_tablet_tool_proximity_event>> on_tablet_proximity =
+        [=] (wf::input_event_signal<wlr_tablet_tool_proximity_event> *ev)
+    {
+        if (ev->event->state == WLR_TABLET_TOOL_PROXIMITY_OUT)
+        {
+            timer_reenable_touch.set_timeout(reenable_timeout, [=] ()
+            {
+                set_touch_state(true);
+            });
+        } else
+        {
+            timer_reenable_touch.disconnect();
+            set_touch_state(false);
         }
     };
 };
