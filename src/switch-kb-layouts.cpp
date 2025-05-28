@@ -3,6 +3,8 @@
 #include <wayfire/output.hpp>
 #include <wayfire/bindings-repository.hpp>
 #include <wayfire/signal-definitions.hpp>
+#include <wayfire/config/config-manager.hpp>
+#include <wayfire/util.hpp>
 
 struct skb_layout_t
 {
@@ -21,8 +23,8 @@ class switch_kb_layouts : public wf::plugin_interface_t
     void toggle()
     {
         auto& cfg = wf::get_core().config;
-        auto layout = cfg.get_option("input/xkb_layout");
-        auto variant = cfg.get_option("input/xkb_variant");
+        auto layout = cfg->get_option("input/xkb_layout");
+        auto variant = cfg->get_option("input/xkb_variant");
 
         if (!already_locked)
         {
@@ -55,8 +57,8 @@ class switch_kb_layouts : public wf::plugin_interface_t
         if (already_locked)
         {
             auto& cfg = wf::get_core().config;
-            auto layout = cfg.get_option("input/xkb_layout");
-            auto variant = cfg.get_option("input/xkb_variant");
+            auto layout = cfg->get_option("input/xkb_layout");
+            auto variant = cfg->get_option("input/xkb_variant");
             layout->set_locked(0);
             variant->set_locked(0);
         }

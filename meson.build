@@ -14,7 +14,7 @@ project(
 )
 
 wayfire = dependency('wayfire')
-wlroots = dependency('wlroots')
+wlroots = dependency('wlroots-0.18')
 wfconfig = dependency('wf-config')
 json = dependency('nlohmann_json')
 

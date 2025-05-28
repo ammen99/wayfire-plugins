@@ -1,7 +1,7 @@
 #include <memory>
-#include <nlohmann/json_fwd.hpp>
 #include <sstream>
 #include <wayfire/config/option-types.hpp>
+#include <wayfire/nonstd/json.hpp>
 #include <wayfire/config/types.hpp>
 #include <wayfire/core.hpp>
 #include <wayfire/geometry.hpp>
@@ -64,10 +64,17 @@ class output_log_overlay_t : public wf::scene::node_t
       public:
         using simple_render_instance_t::simple_render_instance_t;
 
-        void render(const wf::render_target_t& target, const wf::region_t& region)
+#if WAYFIRE_API_ABI_VERSION_MACRO >= 2025'05'19
+        void render(const wf::scene::render_instruction_t& data) override
+        {
+            auto g = wf::construct_box(wf::origin(self->get_bounding_box()), self->text.get_size());
+            data.pass->add_rect(wf::color_t{0.01, 0.01, 0.01, 0.1}, data.target, g, data.damage);
+            data.pass->add_texture(self->text.get_texture(), data.target, g, data.damage);
+        }
+#else
+        void render(const wf::render_target_t& target, const wf::region_t& region) override
         {
             OpenGL::render_begin(target);
-
             auto g = wf::construct_box(wf::origin(self->get_bounding_box()), self->text.get_size());
             for (auto box : region)
             {
@@ -79,6 +86,7 @@ class output_log_overlay_t : public wf::scene::node_t
 
             OpenGL::render_end();
         }
+#endif
     };
 
     std::deque<std::string> lines;
@@ -157,16 +165,14 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
   public:
     void init() override
     {
-        nlohmann::json data;
         repository->register_method("ammen99/debug/filter", method_set_filter);
         repository->register_method("ammen99/debug/stop_log", method_stop_log);
         repository->register_method("ammen99/debug/scenedump", method_dump_scenegraph);
     }
 
-    wf::ipc::method_callback method_set_filter = [=] (nlohmann::json data)
+    wf::ipc::method_callback method_set_filter = [=] (const wf::json_t& data)
     {
-        WFJSON_EXPECT_FIELD(data, "filter", string);
-        this->filter = std::string(data["filter"]);
+        this->filter = wf::ipc::json_get_string(data, "filter");
 
         // Add overlay
         if (!overlay)
@@ -185,7 +191,7 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
         return wf::ipc::json_ok();
     };
 
-    wf::ipc::method_callback method_stop_log = [=] (nlohmann::json)
+    wf::ipc::method_callback method_stop_log = [=] (auto)
     {
         // Stop logging
         wf::log::initialize_logging(std::cout, wf::log::LOG_LEVEL_INFO, wf::log::LOG_COLOR_MODE_OFF);
@@ -201,9 +207,9 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
         return wf::ipc::json_ok();
     };
 
-    nlohmann::json dump_scenegraph(wf::scene::node_ptr root)
+    wf::json_t dump_scenegraph(wf::scene::node_ptr root)
     {
-        nlohmann::json result = nlohmann::ordered_json::object();
+        wf::json_t result;
 
         result["name"] = root->stringify();
         result["local-bbox"] = wf::ipc::geometry_to_json(root->get_bounding_box());
@@ -211,18 +217,16 @@ class wayfire_ipc_debugger : public wf::plugin_interface_t
         std::stringstream ss;
         ss << root.get();
         result["id"] = ss.str();
-
-        result["children"] = nlohmann::json::array();
-
+        result["children"] = wf::json_t::array();
         for (auto& ch : root->get_children())
         {
-            result["children"].push_back(dump_scenegraph(ch));
+            result["children"].append(dump_scenegraph(ch));
         }
 
         return result;
     }
 
-    wf::ipc::method_callback method_dump_scenegraph = [=] (nlohmann::json)
+    wf::ipc::method_callback method_dump_scenegraph = [=] (auto)
     {
         return dump_scenegraph(wf::get_core().scene());
     };

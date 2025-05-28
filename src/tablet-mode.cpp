@@ -2,8 +2,10 @@
 #include <wayfire/per-output-plugin.hpp>
 #include <wayfire/input-device.hpp>
 #include <wayfire/plugins/common/shared-core-data.hpp>
+#include <wayfire/config/config-manager.hpp>
 #include <wayfire/scene-input.hpp>
 #include <wayfire/scene.hpp>
+#include <wayfire/util.hpp>
 #include <wayfire/util/log.hpp>
 #include <wayfire/render-manager.hpp>
 #include <wayfire/workspace-set.hpp>
@@ -71,51 +73,46 @@ class tablet_mode_t
         repo->unregister_method("touch/get_lock_rotation");
     }
 
-    wf::ipc::method_callback set_tablet_mode = [=] (nlohmann::json data)
+    wf::ipc::method_callback set_tablet_mode = [=] (const wf::json_t& data) -> wf::json_t
     {
-        if (!data.count("tablet") || !data["tablet"].is_boolean())
-        {
-            return wf::ipc::json_error("Invalid tablet mode data, missing tablet boolean option.");
-        }
-
-        this->tablet_mode = data["tablet"];
+        this->tablet_mode = wf::ipc::json_get_bool(data, "tablet");
         for (auto& dev : wf::get_core().get_input_devices())
         {
             auto wlr = dev->get_wlr_handle();
             if (wlr->type == WLR_INPUT_DEVICE_KEYBOARD ||
                 wlr->type == WLR_INPUT_DEVICE_POINTER)
             {
-                dev->set_enabled(!data["tablet"]);
+                dev->set_enabled(!tablet_mode);
             }
         }
 
-        return nlohmann::json{};
+        return wf::ipc::json_ok();
     };
 
-    ipc::method_callback lock_rotation = [] (nlohmann::json data)
+    ipc::method_callback lock_rotation = [] (const wf::json_t& data)
     {
-        WFJSON_EXPECT_FIELD(data, "locked", boolean);
+        auto locked = wf::ipc::json_get_bool(data, "locked");
 
         auto& cfg = wf::get_core().config;
-        auto opt = cfg.get_option("autorotate-iio/lock_rotation");
+        auto opt = cfg->get_option("autorotate-iio/lock_rotation");
 
         opt->set_locked(true);
-        opt->set_value_str(data["locked"] ? "true" : "false");
-        return nlohmann::json{};
+        opt->set_value_str(locked ? "true" : "false");
+        return wf::ipc::json_ok();
     };
 
-    ipc::method_callback get_tablet_mode = [=] (nlohmann::json)
+    ipc::method_callback get_tablet_mode = [=] (auto)
     {
-        nlohmann::json js;
+        wf::json_t js;
         js["tablet"] = tablet_mode;
         return js;
     };
 
-    ipc::method_callback get_lock_rotation = [=] (nlohmann::json)
+    ipc::method_callback get_lock_rotation = [=] (auto)
     {
         wf::option_wrapper_t<bool> locked{"autorotate-iio/lock_rotation"};
 
-        nlohmann::json js;
+        wf::json_t js;
         js["locked"] = (bool)locked;
         return js;
     };
@@ -374,9 +371,9 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
         focus->pointer_interaction().handle_pointer_enter({10, 10});
         auto seat = wf::get_core().get_current_seat();
 
-        wlr_seat_pointer_notify_button(seat, get_current_time(), btn, WLR_BUTTON_PRESSED);
+        wlr_seat_pointer_notify_button(seat, get_current_time(), btn, WL_POINTER_BUTTON_STATE_PRESSED);
         wlr_seat_pointer_notify_frame(seat);
-        wlr_seat_pointer_notify_button(seat, get_current_time(), btn, WLR_BUTTON_RELEASED);
+        wlr_seat_pointer_notify_button(seat, get_current_time(), btn, WL_POINTER_BUTTON_STATE_RELEASED);
         wlr_seat_pointer_notify_frame(seat);
 
         if (focus != wf::get_core().get_cursor_focus())

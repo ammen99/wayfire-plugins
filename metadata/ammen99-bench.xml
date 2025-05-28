@@ -16,5 +16,14 @@
 			<default>0</default>
 			<min>0</min>
 		</option>
+		<option name="immediate_draw" type="bool">
+			<_short>Draw as soon as possible</_short>
+			<_long>Whether to draw the next frame as soon as possible, instead of waiting for damage.</_long>
+			<default>false</default>
+		</option>
+		<option name="stdout" type="bool">
+			<_short>Print FPS to stdout</_short>
+			<default>false</default>
+		</option>
 	</plugin>
 </wayfire>

@@ -6,6 +6,7 @@
 #include <wayfire/region.hpp>
 #include <wayfire/bindings-repository.hpp>
 #include <wayfire/scene-operations.hpp>
+#include <wayfire/scene-render.hpp>
 #include <wayfire/signal-definitions.hpp>
 #include <wayfire/signal-provider.hpp>
 #include <wayfire/nonstd/wlroots-full.hpp>
@@ -17,7 +18,13 @@ class cursor_overlay_t : public wf::scene::node_t
       public:
         using simple_render_instance_t::simple_render_instance_t;
 
-        void render(const wf::render_target_t& target, const wf::region_t& region)
+#if WAYFIRE_API_ABI_VERSION_MACRO >= 2025'05'19
+        void render(const wf::scene::render_instruction_t& data) override
+        {
+            data.pass->add_rect(wf::color_t{0.5, 0, 0, 0.5}, data.target, self->geometry, data.damage);
+        }
+#else
+        void render(const wf::render_target_t& target, const wf::region_t& region) override
         {
             OpenGL::render_begin(target);
 
@@ -30,6 +37,7 @@ class cursor_overlay_t : public wf::scene::node_t
 
             OpenGL::render_end();
         }
+#endif
     };
 
   public:
@@ -53,6 +61,8 @@ class wayfire_show_cursor : public wf::plugin_interface_t
 {
     wf::option_wrapper_t<bool> start_enabled{"show-cursor/start_enabled"};
     wf::option_wrapper_t<wf::activatorbinding_t> toggle{"show-cursor/toggle"};
+
+    wf::wl_timer<true> make_visible;
 
     bool currently_enabled = true;
     std::shared_ptr<cursor_overlay_t> node;
@@ -84,6 +94,16 @@ class wayfire_show_cursor : public wf::plugin_interface_t
         wf::get_core().connect(&on_motion_abs);
         wf::get_core().connect(&on_proximity);
         wf::get_core().connect(&on_axis);
+        make_visible.set_timeout(100, [&] ()
+        {
+            auto children = wf::get_core().scene()->get_children();
+            if (children.front() != node)
+            {
+                wf::scene::readd_front(wf::get_core().scene(), node);
+            }
+
+            return true;
+        });
     }
 
     void disable()
@@ -93,6 +113,7 @@ class wayfire_show_cursor : public wf::plugin_interface_t
         on_motion_abs.disconnect();
         on_proximity.disconnect();
         on_axis.disconnect();
+        make_visible.disconnect();
     }
 
     void update_position()

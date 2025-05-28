@@ -16,19 +16,18 @@ class ammen99_ipc_commands : public wf::plugin_interface_t
   public:
     void init() override
     {
-        nlohmann::json data;
         repository->register_method("ammen99/ipc/set_grid_size", method_set_grid_size);
     }
 
-    wf::ipc::method_callback method_set_grid_size = [=] (nlohmann::json data)
+    wf::ipc::method_callback method_set_grid_size = [=] (const wf::json_t& data)
     {
-        WFJSON_EXPECT_FIELD(data, "width", number_integer);
-        WFJSON_EXPECT_FIELD(data, "height", number_integer);
+        int width = wf::ipc::json_get_uint64(data, "width");
+        int height = wf::ipc::json_get_uint64(data, "height");
 
         auto wo = wf::get_core().seat->get_active_output();
         if (wo)
         {
-            wo->wset()->set_workspace_grid_size({(int)data["width"], (int)data["height"]});
+            wo->wset()->set_workspace_grid_size({width, height});
         }
 
         return wf::ipc::json_ok();

@@ -25,7 +25,6 @@
 
 #include <math.h>
 #include <deque>
-#include <numeric>
 #include <wayfire/config/types.hpp>
 #include <wayfire/geometry.hpp>
 #include <wayfire/plugin.hpp>
@@ -43,6 +42,8 @@ class wayfire_bench_screen : public wf::per_output_plugin_instance_t
     std::deque<uint64_t> last_frame_times;
     wf::option_wrapper_t<double> average_frames{"ammen99-bench/average_frames"};
     wf::option_wrapper_t<double> refresh_interval{"ammen99-bench/refresh_interval"};
+    wf::option_wrapper_t<bool> immediate_draw{"ammen99-bench/immediate_draw"};
+    wf::option_wrapper_t<bool> use_stdout{"ammen99-bench/stdout"};
 
     wf::wl_timer<true> timer;
 
@@ -89,6 +90,16 @@ class wayfire_bench_screen : public wf::per_output_plugin_instance_t
     {
         char fps_buf[128];
         sprintf(fps_buf, "fps: %.1f", current_fps);
+        if (use_stdout)
+        {
+            static uint64_t last_update = 0;
+            auto current_time = wf::get_current_time();
+            if (current_time - last_update >= refresh_interval * 1000)
+            {
+                LOGI("Running at ", current_fps, " fps");
+                last_update = current_time;
+            }
+        }
 
         wf::cairo_text_t::params params;
         params.font_size = 32;
@@ -99,7 +110,7 @@ class wayfire_bench_screen : public wf::per_output_plugin_instance_t
 
     wf::effect_hook_t pre_hook = [=] ()
     {
-        if (!output->render->get_scheduled_damage().empty())
+        if (!output->render->get_scheduled_damage().empty() || immediate_draw)
         {
             output->render->damage(get_geometry());
             compute_timing();
@@ -109,11 +120,16 @@ class wayfire_bench_screen : public wf::per_output_plugin_instance_t
     wf::effect_hook_t overlay_hook = [=] ()
     {
         auto fb = output->render->get_target_framebuffer();
-        OpenGL::render_begin(fb);
-        OpenGL::render_transformed_texture(wf::texture_t{text.tex.tex},
-            get_geometry(), fb.get_orthographic_projection(), glm::vec4(1.0),
-            OpenGL::TEXTURE_TRANSFORM_INVERT_Y);
-        OpenGL::render_end();
+#if WAYFIRE_API_ABI_VERSION_MACRO < 2025'05'19
+            OpenGL::render_begin(fb);
+            OpenGL::render_transformed_texture(wf::texture_t{text.tex.tex},
+                get_geometry(), fb.get_orthographic_projection(), glm::vec4(1.0),
+                OpenGL::TEXTURE_TRANSFORM_INVERT_Y);
+            OpenGL::render_end();
+#else
+            output->render->get_current_pass()->add_texture(
+                wf::texture_t{text.get_texture()}, fb, get_geometry(), fb.geometry);
+#endif
     };
 
     void fini() override
