@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<wayfire>
+	<plugin name="tablet-mode">
+	<_short>Tablet Mode</_short>
+	<category>Desktop</category>
+	<option name="touch_reenable_timeout" type="int">
+		<default>500</default>
+	</option>
+	</plugin>
+</wayfire>
