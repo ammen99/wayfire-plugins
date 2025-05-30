@@ -1,4 +1,3 @@
-#include <nlohmann/json_fwd.hpp>
 #include <wayfire/core.hpp>
 #include <wayfire/geometry.hpp>
 #include <wayfire/plugin.hpp>
