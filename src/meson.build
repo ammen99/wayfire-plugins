@@ -36,9 +36,9 @@ logitech_workaround = shared_module('ammen99-logitech', 'workaround-logitech.cpp
 #    install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
 
 tablet_mode = shared_module('tablet-mode', ['tablet-mode.cpp'],
-    dependencies: [wayfire, wlroots, json],
+    dependencies: [wayfire, wlroots],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
 
 bench = shared_module('ammen99-bench', ['bench.cpp'],
-    dependencies: [wayfire, wlroots, json],
+    dependencies: [wayfire, wlroots],
     install: true, install_dir: wayfire.get_variable(pkgconfig: 'plugindir'))
