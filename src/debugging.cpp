@@ -67,7 +67,7 @@ class output_log_overlay_t : public wf::scene::node_t
 #if WAYFIRE_API_ABI_VERSION_MACRO >= 2025'05'19
         void render(const wf::scene::render_instruction_t& data) override
         {
-            if (self->text.get_texture().texture)
+            if (self->text.get_texture())
             {
                 auto g = wf::construct_box(wf::origin(self->get_bounding_box()), self->text.get_size());
                 data.pass->add_rect(wf::color_t{0.01, 0.01, 0.01, 0.1}, data.target, g, data.damage);

@@ -14,7 +14,6 @@ project(
 )
 
 wayfire = dependency('wayfire')
-wlroots = dependency('wlroots-0.18')
 wfconfig = dependency('wf-config')
 
 add_project_arguments(['-DWLR_USE_UNSTABLE'], language: ['cpp', 'c'])

@@ -135,7 +135,7 @@ class wayfire_bench_screen : public wf::per_output_plugin_instance_t
             OpenGL::render_end();
 #else
             output->render->get_current_pass()->add_texture(
-                wf::texture_t{text.get_texture()}, fb, get_geometry(), fb.geometry);
+                text.get_texture(), fb, get_geometry(), fb.geometry);
 #endif
     };
 
