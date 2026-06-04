@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<wayfire>
+  <plugin name="special-to-super">
+    <_short>Special to Super</_short>
+    <category>Input</category>
+  </plugin>
+</wayfire>

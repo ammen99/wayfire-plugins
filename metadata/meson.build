@@ -5,3 +5,5 @@ install_data('blur-to-background.xml', install_dir: wayfire.get_variable(pkgconf
 install_data('show-cursor.xml', install_dir: wayfire.get_variable(pkgconfig: 'metadatadir'))
 install_data('ammen99-bench.xml', install_dir: wayfire.get_variable(pkgconfig: 'metadatadir'))
 install_data('tablet-mode.xml', install_dir: wayfire.get_variable(pkgconfig: 'metadatadir'))
+install_data('super-to-special.xml', install_dir: wayfire.get_variable(pkgconfig: 'metadatadir'))
+install_data('special-to-super.xml', install_dir: wayfire.get_variable(pkgconfig: 'metadatadir'))

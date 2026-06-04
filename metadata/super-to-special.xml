@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<wayfire>
+  <plugin name="super-to-special">
+    <_short>Super to Special</_short>
+    <category>Input</category>
+    <option name="enabled_for" type="string">
+      <default>none</default>
+    </option>
+  </plugin>
+</wayfire>
