@@ -162,6 +162,7 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
 
     wf::wl_listener_wrapper needs_osk;
 
+    touch_target_t target;
     wf::plugin_activation_data_t grab_interface = {
         .capabilities = CAPABILITY_GRAB_INPUT,
     };
@@ -181,6 +182,7 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
                 .set_move_tolerance(5)
                 .set_duration(100))
             .on_completed(close_panel)
+            .should_consume(should_consume_tap)
             .build();
         wf::get_core().add_touch_gesture(&tap_to_close_gesture);
 
@@ -233,13 +235,11 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
         [=] (output_configuration_changed_signal*)
     {
         auto og = output->get_layout_geometry();
-        touch_target_t target;
 
         target.x = og.x;
         target.y = og.y + og.height - 20;
         target.width = og.width;
         target.height = 20;
-
 
         // Setup a gesture for opening amoxtli-panel.
         // The user needs to swipe from the top edge.
@@ -251,6 +251,7 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
             .action(drag_action_t(MOVE_DIRECTION_UP, 50))
             .action(reveal_action_t(drag_started, drag_continues))
             .on_completed(drag_ended)
+            .should_consume(should_consume_edgeswipe)
             .build();
         wf::get_core().add_touch_gesture(&reveal_gesture);
     };
@@ -354,6 +355,28 @@ class tablet_plugin_t : public wf::per_output_plugin_instance_t
         {
             start_animation(panel->get_pending_geometry().height);
         }
+    };
+
+    gesture_consume_t should_consume_edgeswipe =
+        [=] (const gesture_state_t& state, const gesture_event_t& event) -> bool
+    {
+        return state.fingers.size() == 1 &&
+            event.type == touch::EVENT_TYPE_TOUCH_DOWN &&
+            event.pos.x >= target.x && event.pos.x <= target.x + target.width &&
+            event.pos.y >= target.y && event.pos.y <= target.y + target.height;
+    };
+
+    gesture_consume_t should_consume_tap =
+        [=] (const gesture_state_t& state, const gesture_event_t& event) -> bool
+    {
+        if (!panel || state.fingers.size() != 1 || event.type != touch::EVENT_TYPE_TOUCH_DOWN)
+        {
+            return false;
+        }
+
+        // We need to consume any taps outside of the panel
+        auto node = wf::get_core().scene()->find_node_at({event.pos.x, event.pos.y});
+        return !node || wf::node_to_view(node->node.get()) != panel;
     };
 
     std::function<void()> close_panel = [=] ()
