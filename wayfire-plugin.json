@@ -1,0 +1,20 @@
+{
+  "name": "wayfire-plugins-ammen99",
+  "description": "Personal Wayfire plugins by ammen99.",
+  "setup": "Add the desired installed plugin names to [core] plugins manually: ammen99-debugging show-cursor ammen99-ipc ammen99-logitech super-to-special special-to-super tablet-mode ammen99-bench.",
+  "refs": [
+    {
+      "wayfire": "0.11",
+      "ref": "master"
+    },
+    {
+      "wayfire": "git",
+      "ref": "master"
+    }
+  ],
+  "build_commands": {
+    "setup": ["meson", "setup", "%builddir%", "%sourcedir%", "--prefix", "%prefix%"],
+    "build": ["meson", "compile", "-C", "%builddir%"],
+    "install": ["meson", "install", "-C", "%builddir%"]
+  }
+}
